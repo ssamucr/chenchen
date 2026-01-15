@@ -1,0 +1,105 @@
+# ============ ARCHIVOS DE ENTORNO ============
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ============ LOGS ============
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============ DEPENDENCIAS ============
+node_modules/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ============ VIRTUAL ENVIRONMENTS ============
+venv/
+ENV/
+env/
+.venv/
+.ENV/
+.env/
+
+# ============ IDEs y EDITORES ============
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ============ DOCKER ============
+# No ignorar docker-compose.yml intencionalmente
+
+# ============ BACKUPS DE BASE DE DATOS ============
+*.sql.backup
+backup*.sql
+dump*.sql
+
+# ============ ARCHIVOS TEMPORALES ============
+*.tmp
+*.temp
+.cache/
+.pytest_cache/
+
+# ============ KEYS Y CERTIFICADOS ============
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# ============ COBERTURA DE TESTS ============
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+
+# ============ JUPYTER NOTEBOOKS ============
+.ipynb_checkpoints
+
+# ============ ARCHIVOS DE SISTEMA ============
+.DS_Store?
+ehthumbs.db
+Icon?
+
+# ============ DOCUMENTACIÓN GENERADA ============
+docs/_build/
+
+# ============ FRONTEND (React/Next.js) ============
+.next/
+out/
+build/
+
+# ============ HERRAMIENTAS DE DESARROLLO ============
+.mypy_cache/
+.dmypy.json
+dmypy.json
