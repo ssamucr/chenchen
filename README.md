@@ -34,6 +34,14 @@ docker-compose up -d postgres
 2. **categorias** - Clasificación de transacciones (con subcategorías)
 3. **cuentas** - Cuentas bancarias, efectivo, tarjetas, etc.
 4. **transacciones** - Registro de todos los movimientos financieros
+5. **subcuentas** - Organización de fondos específicos dentro de cuentas
+6. **tarjetas** - Tarjetas de crédito/débito
+7. **movimientos_subcuenta** - Movimientos de fondos en subcuentas
+8. **deudas** - Gestión de deudas y préstamos
+9. **movimientos_deuda** - Registro de pagos y cargos de deudas
+10. **gastos_planificados** - Planificación de gastos futuros
+11. **compromisos_recurrentes** - Ingresos/egresos recurrentes
+12. **plan_quincenal** - Distribución quincenal de recursos
 
 ### Características Clave
 
@@ -54,6 +62,14 @@ finanzas-personales/
 │   ├── V002__categorias.sql    # Categorías y subcategorías
 │   ├── V003__cuentas.sql       # Cuentas financieras
 │   ├── V004__transacciones.sql # Transacciones
+│   ├── V005__subcuentas.sql    # Subcuentas
+│   ├── V006__tarjetas.sql      # Tarjetas
+│   ├── V007__movimientos_subcuenta.sql  # Movimientos subcuenta
+│   ├── V008__deudas.sql        # Deudas
+│   ├── V009__movimientos_deuda.sql      # Movimientos deuda
+│   ├── V010__gastos_planificados.sql    # Gastos planificados
+│   ├── V011__compromisos_recurrentes.sql # Compromisos
+│   ├── V012__plan_quincenal.sql         # Plan quincenal
 │   └── init_all.sql           # Script principal
 ├── docs/
 │   └── modelo_fisico_transacciones.md
@@ -116,6 +132,18 @@ docker-compose down -v
 - ✅ Colores hexadecimales válidos
 - ✅ Tipos de transacción específicos
 - ✅ Nombres únicos por tipo y nivel
+
+### Subcuentas y Tarjetas
+- ✅ Organización de fondos con metas
+- ✅ Seguimiento de progreso automático
+- ✅ Gestión de límites de crédito
+- ✅ Cálculo de disponibilidad
+
+### Deudas y Planificación
+- ✅ Seguimiento de deudas con amortización
+- ✅ Gastos planificados con fechas objetivo
+- ✅ Compromisos recurrentes automáticos
+- ✅ Plan quincenal de distribución
 
 ## 🎯 Ejemplos de Datos
 

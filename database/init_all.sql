@@ -25,9 +25,49 @@ SET timezone = 'UTC';
 \echo '✅ Cuentas creada exitosamente'
 \echo ''
 
-\echo '💸 Paso 4/4: Creando tabla TRANSACCIONES...'
+\echo '💸 Paso 4/12: Creando tabla TRANSACCIONES...'
 \i V004__transacciones.sql
 \echo '✅ Transacciones creada exitosamente'
+\echo ''
+
+\echo '🎯 Paso 5/12: Creando tabla SUBCUENTAS...'
+\i V005__subcuentas.sql
+\echo '✅ Subcuentas creada exitosamente'
+\echo ''
+
+\echo '💳 Paso 6/12: Creando tabla TARJETAS...'
+\i V006__tarjetas.sql
+\echo '✅ Tarjetas creada exitosamente'
+\echo ''
+
+\echo '🔄 Paso 7/12: Creando tabla MOVIMIENTOS_SUBCUENTA...'
+\i V007__movimientos_subcuenta.sql
+\echo '✅ Movimientos Subcuenta creada exitosamente'
+\echo ''
+
+\echo '💸 Paso 8/12: Creando tabla DEUDAS...'
+\i V008__deudas.sql
+\echo '✅ Deudas creada exitosamente'
+\echo ''
+
+\echo '🔁 Paso 9/12: Creando tabla MOVIMIENTOS_DEUDA...'
+\i V009__movimientos_deuda.sql
+\echo '✅ Movimientos Deuda creada exitosamente'
+\echo ''
+
+\echo '📅 Paso 10/12: Creando tabla GASTOS_PLANIFICADOS...'
+\i V010__gastos_planificados.sql
+\echo '✅ Gastos Planificados creada exitosamente'
+\echo ''
+
+\echo '🔁 Paso 11/12: Creando tabla COMPROMISOS_RECURRENTES...'
+\i V011__compromisos_recurrentes.sql
+\echo '✅ Compromisos Recurrentes creada exitosamente'
+\echo ''
+
+\echo '📋 Paso 12/12: Creando tabla PLAN_QUINCENAL...'
+\i V012__plan_quincenal.sql
+\echo '✅ Plan Quincenal creada exitosamente'
 \echo ''
 
 -- Verificar que todo se creó correctamente
@@ -54,7 +94,31 @@ SELECT
     'cuentas' as tabla, COUNT(*) as registros FROM cuentas
 UNION ALL
 SELECT 
-    'transacciones' as tabla, COUNT(*) as registros FROM transacciones;
+    'transacciones' as tabla, COUNT(*) as registros FROM transacciones
+UNION ALL
+SELECT 
+    'subcuentas' as tabla, COUNT(*) as registros FROM subcuentas
+UNION ALL
+SELECT 
+    'tarjetas' as tabla, COUNT(*) as registros FROM tarjetas
+UNION ALL
+SELECT 
+    'movimientos_subcuenta' as tabla, COUNT(*) as registros FROM movimientos_subcuenta
+UNION ALL
+SELECT 
+    'deudas' as tabla, COUNT(*) as registros FROM deudas
+UNION ALL
+SELECT 
+    'movimientos_deuda' as tabla, COUNT(*) as registros FROM movimientos_deuda
+UNION ALL
+SELECT 
+    'gastos_planificados' as tabla, COUNT(*) as registros FROM gastos_planificados
+UNION ALL
+SELECT 
+    'compromisos_recurrentes' as tabla, COUNT(*) as registros FROM compromisos_recurrentes
+UNION ALL
+SELECT 
+    'plan_quincenal' as tabla, COUNT(*) as registros FROM plan_quincenal;
 
 \echo ''
 \echo '🎉 ¡Base de datos creada exitosamente!'
