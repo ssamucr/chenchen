@@ -69,6 +69,11 @@ WHERE activo = TRUE;
 CREATE INDEX idx_usuarios_creado_en 
 ON usuarios(creado_en DESC);
 
+-- Índice compuesto para login con validación de estado
+CREATE INDEX idx_usuarios_email_activo 
+ON usuarios(LOWER(email), activo) 
+WHERE activo = TRUE;
+
 -- ============ TRIGGER PARA ACTUALIZACIÓN AUTOMÁTICA ============
 
 -- Función para actualizar timestamp

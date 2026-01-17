@@ -2,6 +2,8 @@
 -- TABLA: transacciones
 -- Descripción: Registro de todas las transacciones financieras
 -- Restricción especial: Al menos cuenta_origen_id O cuenta_destino_id debe existir
+-- NOTA: Las transacciones son EDITABLES y ELIMINABLES
+--       Los triggers mantienen automáticamente la integridad de saldos
 -- =====================================================
 
 CREATE TABLE transacciones (
@@ -23,6 +25,7 @@ CREATE TABLE transacciones (
     
     -- ============ AUDITORIA ============
     creada_en           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    actualizada_en      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
     -- ============ FOREIGN KEYS ============
     CONSTRAINT fk_transaccion_usuario 
@@ -110,8 +113,111 @@ CREATE INDEX idx_transacciones_categoria
 ON transacciones(categoria_id) 
 WHERE categoria_id IS NOT NULL;
 
+-- ============ TRIGGERS PARA MANTENER INTEGRIDAD DE SALDOS ============
+
+-- Trigger para INSERT: aplicar transacción a saldos
+CREATE OR REPLACE FUNCTION aplicar_transaccion()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Si hay cuenta origen, restar el monto
+    IF NEW.cuenta_origen_id IS NOT NULL THEN
+        UPDATE cuentas 
+        SET saldo_actual = saldo_actual - NEW.monto,
+            ultimo_movimiento = NOW()
+        WHERE cuenta_id = NEW.cuenta_origen_id;
+    END IF;
+    
+    -- Si hay cuenta destino, sumar el monto
+    IF NEW.cuenta_destino_id IS NOT NULL THEN
+        UPDATE cuentas 
+        SET saldo_actual = saldo_actual + NEW.monto,
+            ultimo_movimiento = NOW()
+        WHERE cuenta_id = NEW.cuenta_destino_id;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_aplicar_transaccion
+    AFTER INSERT ON transacciones
+    FOR EACH ROW
+    EXECUTE FUNCTION aplicar_transaccion();
+
+-- Trigger para UPDATE: revertir transacción vieja y aplicar nueva
+CREATE OR REPLACE FUNCTION actualizar_transaccion()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Revertir transacción anterior
+    IF OLD.cuenta_origen_id IS NOT NULL THEN
+        UPDATE cuentas 
+        SET saldo_actual = saldo_actual + OLD.monto
+        WHERE cuenta_id = OLD.cuenta_origen_id;
+    END IF;
+    
+    IF OLD.cuenta_destino_id IS NOT NULL THEN
+        UPDATE cuentas 
+        SET saldo_actual = saldo_actual - OLD.monto
+        WHERE cuenta_id = OLD.cuenta_destino_id;
+    END IF;
+    
+    -- Aplicar nueva transacción
+    IF NEW.cuenta_origen_id IS NOT NULL THEN
+        UPDATE cuentas 
+        SET saldo_actual = saldo_actual - NEW.monto,
+            ultimo_movimiento = NOW()
+        WHERE cuenta_id = NEW.cuenta_origen_id;
+    END IF;
+    
+    IF NEW.cuenta_destino_id IS NOT NULL THEN
+        UPDATE cuentas 
+        SET saldo_actual = saldo_actual + NEW.monto,
+            ultimo_movimiento = NOW()
+        WHERE cuenta_id = NEW.cuenta_destino_id;
+    END IF;
+    
+    -- Actualizar timestamp
+    NEW.actualizada_en = NOW();
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_actualizar_transaccion
+    BEFORE UPDATE ON transacciones
+    FOR EACH ROW
+    EXECUTE FUNCTION actualizar_transaccion();
+
+-- Trigger para DELETE: revertir transacción
+CREATE OR REPLACE FUNCTION eliminar_transaccion()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Revertir efectos en las cuentas
+    IF OLD.cuenta_origen_id IS NOT NULL THEN
+        UPDATE cuentas 
+        SET saldo_actual = saldo_actual + OLD.monto,
+            ultimo_movimiento = NOW()
+        WHERE cuenta_id = OLD.cuenta_origen_id;
+    END IF;
+    
+    IF OLD.cuenta_destino_id IS NOT NULL THEN
+        UPDATE cuentas 
+        SET saldo_actual = saldo_actual - OLD.monto,
+            ultimo_movimiento = NOW()
+        WHERE cuenta_id = OLD.cuenta_destino_id;
+    END IF;
+    
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_eliminar_transaccion
+    BEFORE DELETE ON transacciones
+    FOR EACH ROW
+    EXECUTE FUNCTION eliminar_transaccion();
+
 -- ============ COMENTARIOS ============
-COMMENT ON TABLE transacciones IS 'Registro de todas las transacciones financieras del usuario';
+COMMENT ON TABLE transacciones IS 'Registro de transacciones financieras (EDITABLES y ELIMINABLES para facilidad del usuario)';
 COMMENT ON COLUMN transacciones.transaccion_id IS 'Identificador único de la transacción';
 COMMENT ON COLUMN transacciones.usuario_id IS 'Usuario propietario de la transacción';
 COMMENT ON COLUMN transacciones.cuenta_origen_id IS 'Cuenta de donde sale el dinero (NULL para ingresos externos)';
@@ -121,9 +227,25 @@ COMMENT ON COLUMN transacciones.tipo IS 'Tipo: INGRESO, GASTO, TRANSFERENCIA, AJ
 COMMENT ON COLUMN transacciones.monto IS 'Cantidad de dinero (siempre positivo)';
 COMMENT ON COLUMN transacciones.descripcion IS 'Descripción detallada de la transacción';
 COMMENT ON COLUMN transacciones.referencia IS 'Referencia externa (número de factura, etc.)';
+COMMENT ON COLUMN transacciones.creada_en IS 'Fecha de creación de la transacción';
+COMMENT ON COLUMN transacciones.actualizada_en IS 'Última fecha de modificación (si se editó)';
 
 -- ============ EJEMPLOS DE USO ============
 /*
+-- ⚠️ IMPORTANTE: Al crear una cuenta, SIEMPRE crear una transacción AJUSTE para el saldo inicial
+-- Flujo correcto:
+-- 1. Crear la cuenta (saldo inicia en 0)
+-- 2. Inmediatamente crear transacción AJUSTE con el saldo inicial
+-- 3. Esto mantiene trazabilidad completa de todo el dinero
+
+-- ✅ AJUSTE (establecer saldo inicial de cuenta recién creada)
+INSERT INTO transacciones (usuario_id, cuenta_destino_id, tipo, monto, descripcion) 
+VALUES (1, 1, 'AJUSTE', 5000.00, 'Saldo inicial al registrar Cuenta Corriente BBVA');
+
+-- ✅ AJUSTE (corrección de saldo por error)
+INSERT INTO transacciones (usuario_id, cuenta_destino_id, tipo, monto, descripcion) 
+VALUES (1, 1, 'AJUSTE', 100.00, 'Corrección: transacción duplicada eliminada');
+
 -- ✅ INGRESO (solo cuenta destino)
 INSERT INTO transacciones (usuario_id, cuenta_destino_id, categoria_id, tipo, monto, descripcion) 
 VALUES (1, 1, (SELECT categoria_id FROM categorias WHERE nombre = 'Salario' LIMIT 1), 'INGRESO', 3000.00, 'Salario enero 2026');

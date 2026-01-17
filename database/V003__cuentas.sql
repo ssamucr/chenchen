@@ -19,7 +19,6 @@ CREATE TABLE cuentas (
     moneda              CHAR(3) NOT NULL DEFAULT 'USD',
     
     -- ============ SALDOS ============
-    saldo_inicial       DECIMAL(15,2) NOT NULL DEFAULT 0.00,
     saldo_actual        DECIMAL(15,2) NOT NULL DEFAULT 0.00,
     limite_credito      DECIMAL(15,2),
     
@@ -81,14 +80,6 @@ CREATE TABLE cuentas (
             (tipo_cuenta = 'TARJETA_CREDITO' AND limite_credito >= 0)
             OR 
             (tipo_cuenta != 'TARJETA_CREDITO' AND limite_credito IS NULL)
-        ),
-    
-    -- ✅ Saldo inicial coherente para créditos
-    CONSTRAINT check_saldo_inicial_credito 
-        CHECK (
-            (tipo_cuenta = 'TARJETA_CREDITO' AND saldo_inicial <= 0)
-            OR 
-            (tipo_cuenta != 'TARJETA_CREDITO')
         )
 );
 
@@ -126,11 +117,28 @@ WHERE activa = TRUE;
 
 -- ============ TRIGGER PARA ACTUALIZACIÓN AUTOMÁTICA ============
 
--- Función para actualizar timestamp
+-- Función para actualizar timestamp (solo cuando el usuario edita campos, no por transacciones)
 CREATE OR REPLACE FUNCTION actualizar_timestamp_cuentas()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.actualizada_en = NOW();
+    -- Solo actualizar si cambió algún campo relevante (no saldo_actual ni ultimo_movimiento)
+    IF (OLD.nombre IS DISTINCT FROM NEW.nombre OR
+        OLD.tipo_cuenta IS DISTINCT FROM NEW.tipo_cuenta OR
+        OLD.institucion IS DISTINCT FROM NEW.institucion OR
+        OLD.numero_cuenta IS DISTINCT FROM NEW.numero_cuenta OR
+        OLD.moneda IS DISTINCT FROM NEW.moneda OR
+        OLD.limite_credito IS DISTINCT FROM NEW.limite_credito OR
+        OLD.activa IS DISTINCT FROM NEW.activa OR
+        OLD.incluir_en_total IS DISTINCT FROM NEW.incluir_en_total OR
+        OLD.color_hex IS DISTINCT FROM NEW.color_hex OR
+        OLD.icono IS DISTINCT FROM NEW.icono OR
+        OLD.orden_mostrar IS DISTINCT FROM NEW.orden_mostrar OR
+        OLD.descripcion IS DISTINCT FROM NEW.descripcion OR
+        OLD.notas IS DISTINCT FROM NEW.notas) THEN
+        
+        NEW.actualizada_en = NOW();
+    END IF;
+    
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -140,33 +148,6 @@ CREATE TRIGGER trigger_actualizar_cuentas
     BEFORE UPDATE ON cuentas
     FOR EACH ROW
     EXECUTE FUNCTION actualizar_timestamp_cuentas();
-
--- ============ FUNCIÓN PARA ACTUALIZAR SALDO ============
-
--- Función que será llamada cuando haya transacciones
-CREATE OR REPLACE FUNCTION actualizar_saldo_cuenta(
-    p_cuenta_id BIGINT,
-    p_monto DECIMAL(15,2),
-    p_es_ingreso BOOLEAN
-)
-RETURNS VOID AS $$
-BEGIN
-    UPDATE cuentas 
-    SET 
-        saldo_actual = CASE 
-            WHEN p_es_ingreso THEN saldo_actual + p_monto
-            ELSE saldo_actual - p_monto
-        END,
-        ultimo_movimiento = NOW(),
-        actualizada_en = NOW()
-    WHERE cuenta_id = p_cuenta_id;
-    
-    -- Verificar que la cuenta existe
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Cuenta con ID % no encontrada', p_cuenta_id;
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
 
 -- ============ VISTA PARA SALDOS CONSOLIDADOS ============
 
@@ -202,8 +183,7 @@ COMMENT ON COLUMN cuentas.tipo_cuenta IS 'Tipo: EFECTIVO, CUENTA_CORRIENTE, TARJ
 COMMENT ON COLUMN cuentas.institucion IS 'Banco o institución financiera (ej: "BBVA", "Banamex")';
 COMMENT ON COLUMN cuentas.numero_cuenta IS 'Número de cuenta (últimos 4 dígitos por seguridad)';
 COMMENT ON COLUMN cuentas.moneda IS 'Moneda de la cuenta (ISO 4217)';
-COMMENT ON COLUMN cuentas.saldo_inicial IS 'Saldo al momento de registrar la cuenta';
-COMMENT ON COLUMN cuentas.saldo_actual IS 'Saldo actual calculado (se actualiza con transacciones)';
+COMMENT ON COLUMN cuentas.saldo_actual IS 'Saldo actual calculado (inicia en 0, se actualiza con transacciones). Para saldo inicial usar transacción tipo AJUSTE_INICIAL';
 COMMENT ON COLUMN cuentas.limite_credito IS 'Límite de crédito (solo para tarjetas de crédito)';
 COMMENT ON COLUMN cuentas.activa IS 'Cuenta habilitada para transacciones';
 COMMENT ON COLUMN cuentas.incluir_en_total IS 'Incluir en cálculo de patrimonio total';
@@ -214,10 +194,13 @@ COMMENT ON COLUMN cuentas.ultimo_movimiento IS 'Fecha de la última transacción
 
 -- ============ DATOS DE EJEMPLO ============
 /*
--- Cuentas de ejemplo para usuario ID 1
-INSERT INTO cuentas (usuario_id, nombre, tipo_cuenta, institucion, numero_cuenta, moneda, saldo_inicial, saldo_actual, color_hex, icono, orden_mostrar) VALUES
-(1, 'Efectivo', 'EFECTIVO', NULL, NULL, 'MXN', 1000.00, 1000.00, '#10B981', 'wallet', 10),
-(1, 'Cuenta Corriente BBVA', 'CUENTA_CORRIENTE', 'BBVA México', '****1234', 'MXN', 5000.00, 5000.00, '#3B82F6', 'university', 20),
-(1, 'Cuenta de Ahorros', 'CUENTA_AHORRO', 'Banorte', '****5678', 'MXN', 10000.00, 10000.00, '#059669', 'piggy-bank', 30),
-(1, 'Tarjeta BBVA', 'TARJETA_CREDITO', 'BBVA México', '****9012', 'MXN', 0.00, -1500.00, '#EF4444', 'credit-card', 40);
+-- Cuentas de ejemplo para usuario ID 1 (todas inician con saldo 0)
+INSERT INTO cuentas (usuario_id, nombre, tipo_cuenta, institucion, numero_cuenta, moneda, color_hex, icono, orden_mostrar) VALUES
+(1, 'Efectivo', 'EFECTIVO', NULL, NULL, 'MXN', '#10B981', 'wallet', 10),
+(1, 'Cuenta Corriente BBVA', 'CUENTA_CORRIENTE', 'BBVA México', '****1234', 'MXN', '#3B82F6', 'university', 20),
+(1, 'Cuenta de Ahorros', 'CUENTA_AHORRO', 'Banorte', '****5678', 'MXN', '#059669', 'piggy-bank', 30),
+(1, 'Tarjeta BBVA', 'TARJETA_CREDITO', 'BBVA México', '****9012', 'MXN', '#EF4444', 'credit-card', 40);
+
+-- Nota: Para establecer saldos iniciales, crear transacciones tipo 'AJUSTE_INICIAL'
+-- después de crear las cuentas (ver V004__transacciones.sql)
 */
