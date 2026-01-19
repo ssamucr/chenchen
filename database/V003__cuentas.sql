@@ -22,6 +22,11 @@ CREATE TABLE cuentas (
     saldo_actual        DECIMAL(15,2) NOT NULL DEFAULT 0.00,
     limite_credito      DECIMAL(15,2),
     
+    -- ============ INFORMACIÓN DE TARJETAS ============
+    dia_corte           INTEGER,
+    dia_pago            INTEGER,
+    tasa_interes        DECIMAL(5,2),
+    
     -- ============ CONFIGURACIÓN ============
     activa              BOOLEAN NOT NULL DEFAULT TRUE,
     incluir_en_total    BOOLEAN NOT NULL DEFAULT TRUE,
@@ -80,7 +85,19 @@ CREATE TABLE cuentas (
             (tipo_cuenta = 'TARJETA_CREDITO' AND limite_credito >= 0)
             OR 
             (tipo_cuenta != 'TARJETA_CREDITO' AND limite_credito IS NULL)
-        )
+        ),
+    
+    -- ✅ Día de corte válido (1-31)
+    CONSTRAINT check_dia_corte_valido 
+        CHECK (dia_corte IS NULL OR (dia_corte BETWEEN 1 AND 31)),
+    
+    -- ✅ Día de pago válido (1-31)
+    CONSTRAINT check_dia_pago_valido 
+        CHECK (dia_pago IS NULL OR (dia_pago BETWEEN 1 AND 31)),
+    
+    -- ✅ Tasa de interés válida (0-100%)
+    CONSTRAINT check_tasa_interes_valida 
+        CHECK (tasa_interes IS NULL OR (tasa_interes BETWEEN 0 AND 100))
 );
 
 -- ============ ÍNDICES PARA RENDIMIENTO ============
@@ -185,6 +202,9 @@ COMMENT ON COLUMN cuentas.numero_cuenta IS 'Número de cuenta (últimos 4 dígit
 COMMENT ON COLUMN cuentas.moneda IS 'Moneda de la cuenta (ISO 4217)';
 COMMENT ON COLUMN cuentas.saldo_actual IS 'Saldo actual calculado (inicia en 0, se actualiza con transacciones). Para saldo inicial usar transacción tipo AJUSTE_INICIAL';
 COMMENT ON COLUMN cuentas.limite_credito IS 'Límite de crédito (solo para tarjetas de crédito)';
+COMMENT ON COLUMN cuentas.dia_corte IS 'Día del mes de corte de cuenta (1-31, solo para tarjetas de crédito)';
+COMMENT ON COLUMN cuentas.dia_pago IS 'Día del mes de pago (1-31, solo para tarjetas de crédito)';
+COMMENT ON COLUMN cuentas.tasa_interes IS 'Tasa de interés anual (%, solo para tarjetas de crédito)';
 COMMENT ON COLUMN cuentas.activa IS 'Cuenta habilitada para transacciones';
 COMMENT ON COLUMN cuentas.incluir_en_total IS 'Incluir en cálculo de patrimonio total';
 COMMENT ON COLUMN cuentas.color_hex IS 'Color para identificar en la UI';

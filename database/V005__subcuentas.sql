@@ -45,10 +45,6 @@ CREATE TABLE subcuentas (
     CONSTRAINT check_monto_meta_positivo 
         CHECK (monto_meta IS NULL OR monto_meta > 0),
     
-    -- ✅ Saldo no puede exceder la meta si existe
-    CONSTRAINT check_saldo_no_excede_meta 
-        CHECK (monto_meta IS NULL OR saldo_actual <= monto_meta),
-    
     -- ✅ Color hexadecimal válido
     CONSTRAINT check_color_hex_valido 
         CHECK (color_hex ~ '^#[0-9A-Fa-f]{6}$')

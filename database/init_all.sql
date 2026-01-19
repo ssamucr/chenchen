@@ -35,9 +35,11 @@ SET timezone = 'UTC';
 \echo '✅ Subcuentas creada exitosamente'
 \echo ''
 
-\echo '💳 Paso 6/12: Creando tabla TARJETAS...'
-\i V006__tarjetas.sql
-\echo '✅ Tarjetas creada exitosamente'
+-- NOTA: Tabla tarjetas eliminada - Las tarjetas ahora se manejan como tipo de cuenta
+-- \echo '💳 Paso 6/12: Creando tabla TARJETAS...'
+-- \i V006__tarjetas.sql
+-- \echo '✅ Tarjetas creada exitosamente'
+-- \echo ''
 \echo ''
 
 \echo '🔄 Paso 7/12: Creando tabla MOVIMIENTOS_SUBCUENTA...'
@@ -98,9 +100,6 @@ SELECT
 UNION ALL
 SELECT 
     'subcuentas' as tabla, COUNT(*) as registros FROM subcuentas
-UNION ALL
-SELECT 
-    'tarjetas' as tabla, COUNT(*) as registros FROM tarjetas
 UNION ALL
 SELECT 
     'movimientos_subcuenta' as tabla, COUNT(*) as registros FROM movimientos_subcuenta
