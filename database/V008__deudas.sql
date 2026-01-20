@@ -10,6 +10,7 @@ CREATE TABLE deudas (
     
     -- ============ RELACIONES ============
     usuario_id          BIGINT NOT NULL,
+    cuenta_id           BIGINT,
     subcuenta_id        BIGINT,
     
     -- ============ DATOS PRINCIPALES ============
@@ -53,6 +54,11 @@ CREATE TABLE deudas (
         FOREIGN KEY (usuario_id) 
         REFERENCES usuarios(usuario_id) 
         ON DELETE CASCADE,
+    
+    CONSTRAINT fk_deuda_cuenta 
+        FOREIGN KEY (cuenta_id) 
+        REFERENCES cuentas(cuenta_id) 
+        ON DELETE SET NULL,
     
     CONSTRAINT fk_deuda_subcuenta 
         FOREIGN KEY (subcuenta_id) 

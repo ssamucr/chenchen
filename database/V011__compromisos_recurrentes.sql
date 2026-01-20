@@ -25,7 +25,6 @@ CREATE TABLE compromisos_recurrentes (
     -- ============ FECHAS ============
     fecha_inicio        DATE NOT NULL DEFAULT CURRENT_DATE,
     fecha_fin           DATE,
-    proximo_evento      DATE,
     ultimo_evento       DATE,
     
     -- ============ ESTADO ============
@@ -103,11 +102,6 @@ CREATE INDEX idx_compromisos_tipo
 ON compromisos_recurrentes(tipo, activo) 
 WHERE activo = TRUE;
 
--- Próximos eventos
-CREATE INDEX idx_compromisos_proximo_evento 
-ON compromisos_recurrentes(proximo_evento) 
-WHERE activo = TRUE AND proximo_evento IS NOT NULL;
-
 -- Búsquedas por frecuencia
 CREATE INDEX idx_compromisos_frecuencia 
 ON compromisos_recurrentes(frecuencia) 
@@ -115,7 +109,7 @@ WHERE activo = TRUE;
 
 -- Auto-generables
 CREATE INDEX idx_compromisos_auto_generar 
-ON compromisos_recurrentes(auto_generar, proximo_evento) 
+ON compromisos_recurrentes(auto_generar) 
 WHERE auto_generar = TRUE AND activo = TRUE;
 
 -- Búsqueda de texto
@@ -134,20 +128,6 @@ BEGIN
         NEW.activo = FALSE;
     END IF;
     
-    -- Calcular próximo evento si no existe
-    IF NEW.proximo_evento IS NULL AND NEW.activo = TRUE THEN
-        NEW.proximo_evento = CASE NEW.frecuencia
-            WHEN 'DIARIA' THEN CURRENT_DATE + INTERVAL '1 day'
-            WHEN 'SEMANAL' THEN CURRENT_DATE + INTERVAL '7 days'
-            WHEN 'QUINCENAL' THEN CURRENT_DATE + INTERVAL '15 days'
-            WHEN 'MENSUAL' THEN CURRENT_DATE + INTERVAL '1 month'
-            WHEN 'BIMESTRAL' THEN CURRENT_DATE + INTERVAL '2 months'
-            WHEN 'TRIMESTRAL' THEN CURRENT_DATE + INTERVAL '3 months'
-            WHEN 'SEMESTRAL' THEN CURRENT_DATE + INTERVAL '6 months'
-            WHEN 'ANUAL' THEN CURRENT_DATE + INTERVAL '1 year'
-        END;
-    END IF;
-    
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -157,43 +137,7 @@ CREATE TRIGGER trigger_actualizar_compromisos
     FOR EACH ROW
     EXECUTE FUNCTION actualizar_timestamp_compromisos();
 
--- ============ FUNCIÓN PARA AVANZAR AL PRÓXIMO EVENTO ============
-
-CREATE OR REPLACE FUNCTION avanzar_proximo_evento(p_compromiso_id BIGINT)
-RETURNS DATE AS $$
-DECLARE
-    v_frecuencia VARCHAR(30);
-    v_proximo_evento DATE;
-    v_nuevo_evento DATE;
-BEGIN
-    SELECT frecuencia, proximo_evento 
-    INTO v_frecuencia, v_proximo_evento
-    FROM compromisos_recurrentes
-    WHERE compromiso_id = p_compromiso_id;
-    
-    v_nuevo_evento := CASE v_frecuencia
-        WHEN 'DIARIA' THEN v_proximo_evento + INTERVAL '1 day'
-        WHEN 'SEMANAL' THEN v_proximo_evento + INTERVAL '7 days'
-        WHEN 'QUINCENAL' THEN v_proximo_evento + INTERVAL '15 days'
-        WHEN 'MENSUAL' THEN v_proximo_evento + INTERVAL '1 month'
-        WHEN 'BIMESTRAL' THEN v_proximo_evento + INTERVAL '2 months'
-        WHEN 'TRIMESTRAL' THEN v_proximo_evento + INTERVAL '3 months'
-        WHEN 'SEMESTRAL' THEN v_proximo_evento + INTERVAL '6 months'
-        WHEN 'ANUAL' THEN v_proximo_evento + INTERVAL '1 year'
-    END;
-    
-    UPDATE compromisos_recurrentes
-    SET 
-        ultimo_evento = v_proximo_evento,
-        proximo_evento = v_nuevo_evento,
-        actualizado_en = NOW()
-    WHERE compromiso_id = p_compromiso_id;
-    
-    RETURN v_nuevo_evento;
-END;
-$$ LANGUAGE plpgsql;
-
--- ============ VISTA DE COMPROMISOS CON ESTADO ============
+-- ============ VISTA DE COMPROMISOS CON PRÓXIMO EVENTO CALCULADO ============
 
 CREATE VIEW vista_compromisos_estado AS
 SELECT 
@@ -206,16 +150,80 @@ SELECT
     cr.monto,
     cr.frecuencia,
     cr.dia_pago,
-    cr.proximo_evento,
+    -- Cálculo dinámico del próximo evento
+    CASE
+        WHEN cr.ultimo_evento IS NOT NULL THEN
+            cr.ultimo_evento + CASE cr.frecuencia
+                WHEN 'DIARIA' THEN INTERVAL '1 day'
+                WHEN 'SEMANAL' THEN INTERVAL '7 days'
+                WHEN 'QUINCENAL' THEN INTERVAL '15 days'
+                WHEN 'MENSUAL' THEN INTERVAL '1 month'
+                WHEN 'BIMESTRAL' THEN INTERVAL '2 months'
+                WHEN 'TRIMESTRAL' THEN INTERVAL '3 months'
+                WHEN 'SEMESTRAL' THEN INTERVAL '6 months'
+                WHEN 'ANUAL' THEN INTERVAL '1 year'
+            END
+        ELSE
+            cr.fecha_inicio + CASE cr.frecuencia
+                WHEN 'DIARIA' THEN INTERVAL '1 day'
+                WHEN 'SEMANAL' THEN INTERVAL '7 days'
+                WHEN 'QUINCENAL' THEN INTERVAL '15 days'
+                WHEN 'MENSUAL' THEN INTERVAL '1 month'
+                WHEN 'BIMESTRAL' THEN INTERVAL '2 months'
+                WHEN 'TRIMESTRAL' THEN INTERVAL '3 months'
+                WHEN 'SEMESTRAL' THEN INTERVAL '6 months'
+                WHEN 'ANUAL' THEN INTERVAL '1 year'
+            END
+    END AS proximo_evento,
+    -- Días hasta el próximo evento
     CASE 
-        WHEN cr.proximo_evento IS NOT NULL 
-        THEN cr.proximo_evento - CURRENT_DATE
-        ELSE NULL 
+        WHEN cr.ultimo_evento IS NOT NULL THEN
+            (cr.ultimo_evento + CASE cr.frecuencia
+                WHEN 'DIARIA' THEN INTERVAL '1 day'
+                WHEN 'SEMANAL' THEN INTERVAL '7 days'
+                WHEN 'QUINCENAL' THEN INTERVAL '15 days'
+                WHEN 'MENSUAL' THEN INTERVAL '1 month'
+                WHEN 'BIMESTRAL' THEN INTERVAL '2 months'
+                WHEN 'TRIMESTRAL' THEN INTERVAL '3 months'
+                WHEN 'SEMESTRAL' THEN INTERVAL '6 months'
+                WHEN 'ANUAL' THEN INTERVAL '1 year'
+            END - CURRENT_DATE)::INTEGER
+        ELSE
+            (cr.fecha_inicio + CASE cr.frecuencia
+                WHEN 'DIARIA' THEN INTERVAL '1 day'
+                WHEN 'SEMANAL' THEN INTERVAL '7 days'
+                WHEN 'QUINCENAL' THEN INTERVAL '15 days'
+                WHEN 'MENSUAL' THEN INTERVAL '1 month'
+                WHEN 'BIMESTRAL' THEN INTERVAL '2 months'
+                WHEN 'TRIMESTRAL' THEN INTERVAL '3 months'
+                WHEN 'SEMESTRAL' THEN INTERVAL '6 months'
+                WHEN 'ANUAL' THEN INTERVAL '1 year'
+            END - CURRENT_DATE)::INTEGER
     END AS dias_hasta_proximo,
+    -- Evento pendiente
     CASE 
-        WHEN cr.proximo_evento IS NOT NULL AND cr.proximo_evento <= CURRENT_DATE 
-        THEN TRUE
-        ELSE FALSE 
+        WHEN cr.ultimo_evento IS NOT NULL THEN
+            (cr.ultimo_evento + CASE cr.frecuencia
+                WHEN 'DIARIA' THEN INTERVAL '1 day'
+                WHEN 'SEMANAL' THEN INTERVAL '7 days'
+                WHEN 'QUINCENAL' THEN INTERVAL '15 days'
+                WHEN 'MENSUAL' THEN INTERVAL '1 month'
+                WHEN 'BIMESTRAL' THEN INTERVAL '2 months'
+                WHEN 'TRIMESTRAL' THEN INTERVAL '3 months'
+                WHEN 'SEMESTRAL' THEN INTERVAL '6 months'
+                WHEN 'ANUAL' THEN INTERVAL '1 year'
+            END) <= CURRENT_DATE
+        ELSE
+            (cr.fecha_inicio + CASE cr.frecuencia
+                WHEN 'DIARIA' THEN INTERVAL '1 day'
+                WHEN 'SEMANAL' THEN INTERVAL '7 days'
+                WHEN 'QUINCENAL' THEN INTERVAL '15 days'
+                WHEN 'MENSUAL' THEN INTERVAL '1 month'
+                WHEN 'BIMESTRAL' THEN INTERVAL '2 months'
+                WHEN 'TRIMESTRAL' THEN INTERVAL '3 months'
+                WHEN 'SEMESTRAL' THEN INTERVAL '6 months'
+                WHEN 'ANUAL' THEN INTERVAL '1 year'
+            END) <= CURRENT_DATE
     END AS evento_pendiente,
     cr.cuenta_destino_id,
     c.nombre AS cuenta_destino_nombre,
@@ -225,11 +233,13 @@ SELECT
     cr.fecha_fin,
     cr.ultimo_evento,
     cr.color_hex,
+    cr.icono,
+    cr.notas,
     cr.creado_en
 FROM compromisos_recurrentes cr
 INNER JOIN usuarios u ON cr.usuario_id = u.usuario_id
 LEFT JOIN cuentas c ON cr.cuenta_destino_id = c.cuenta_id
-ORDER BY cr.proximo_evento NULLS LAST;
+ORDER BY proximo_evento NULLS LAST;
 
 -- ============ FUNCIÓN PARA OBTENER EVENTOS PENDIENTES ============
 
@@ -248,20 +258,43 @@ RETURNS TABLE (
 BEGIN
     RETURN QUERY
     SELECT 
-        cr.compromiso_id,
-        cr.descripcion,
-        cr.tipo,
-        cr.monto,
-        cr.proximo_evento,
-        (cr.proximo_evento - CURRENT_DATE)::INTEGER
-    FROM compromisos_recurrentes cr
-    WHERE cr.usuario_id = p_usuario_id
-        AND cr.activo = TRUE
-        AND cr.proximo_evento IS NOT NULL
-        AND cr.proximo_evento BETWEEN CURRENT_DATE AND CURRENT_DATE + p_dias_adelante
-    ORDER BY cr.proximo_evento;
+        vce.compromiso_id,
+        vce.descripcion,
+        vce.tipo,
+        vce.monto,
+        vce.proximo_evento,
+        vce.dias_hasta_proximo
+    FROM vista_compromisos_estado vce
+    WHERE vce.usuario_id = p_usuario_id
+        AND vce.activo = TRUE
+        AND vce.proximo_evento IS NOT NULL
+        AND vce.proximo_evento BETWEEN CURRENT_DATE AND CURRENT_DATE + p_dias_adelante
+    ORDER BY vce.proximo_evento;
 END;
 $$ LANGUAGE plpgsql;
+
+-- ============ TRIGGER PARA ACTUALIZAR ULTIMO_EVENTO DESDE TRANSACCIONES ============
+
+CREATE OR REPLACE FUNCTION actualizar_ultimo_evento_compromiso()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Solo actualizar si la transacción tiene un compromiso asociado
+    IF NEW.compromiso_recurrente_id IS NOT NULL THEN
+        UPDATE compromisos_recurrentes
+        SET 
+            ultimo_evento = NEW.fecha,
+            actualizado_en = NOW()
+        WHERE compromiso_id = NEW.compromiso_recurrente_id;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Nota: Este trigger se creará en V004 después de que exista la tabla transacciones
+-- Por ahora se documenta aquí para referencia
+COMMENT ON FUNCTION actualizar_ultimo_evento_compromiso() IS 
+'Trigger function que actualiza ultimo_evento cuando se registra una transacción relacionada';
 
 -- ============ COMENTARIOS ============
 COMMENT ON TABLE compromisos_recurrentes IS 'Ingresos y egresos recurrentes (salario, renta, servicios, etc.)';
@@ -273,7 +306,7 @@ COMMENT ON COLUMN compromisos_recurrentes.tipo IS 'Tipo: INGRESO, EGRESO';
 COMMENT ON COLUMN compromisos_recurrentes.monto IS 'Monto del compromiso';
 COMMENT ON COLUMN compromisos_recurrentes.frecuencia IS 'Frecuencia: DIARIA, SEMANAL, QUINCENAL, MENSUAL, etc.';
 COMMENT ON COLUMN compromisos_recurrentes.dia_pago IS 'Día del mes de pago (1-31)';
-COMMENT ON COLUMN compromisos_recurrentes.proximo_evento IS 'Fecha del próximo evento';
+COMMENT ON COLUMN compromisos_recurrentes.ultimo_evento IS 'Fecha del último evento ocurrido';
 COMMENT ON COLUMN compromisos_recurrentes.auto_generar IS 'Generar transacción automáticamente';
 
 -- ============ DATOS DE EJEMPLO ============

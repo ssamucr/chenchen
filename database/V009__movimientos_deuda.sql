@@ -93,22 +93,15 @@ CREATE OR REPLACE FUNCTION actualizar_saldo_deuda_trigger()
 RETURNS TRIGGER AS $$
 DECLARE
     v_monto_ajuste DECIMAL(15,2);
-    v_tipo_deuda VARCHAR(30);
+    v_monto_reversion DECIMAL(15,2);
 BEGIN
-    -- Obtener tipo de deuda
-    SELECT tipo INTO v_tipo_deuda
-    FROM deudas
-    WHERE deuda_id = NEW.deuda_id;
-    
     IF TG_OP = 'INSERT' THEN
         -- Determinar ajuste según tipo de movimiento
         IF NEW.tipo IN ('CARGO', 'INTERES') THEN
             v_monto_ajuste := NEW.monto;
-        ELSIF NEW.tipo IN ('PAGO') THEN
+        ELSIF NEW.tipo = 'PAGO' THEN
             v_monto_ajuste := -NEW.monto;
-        ELSIF NEW.tipo IN ('AJUSTE') THEN
-            v_monto_ajuste := NEW.monto;
-        ELSIF NEW.tipo IN ('REFINANCIACION') THEN
+        ELSIF NEW.tipo IN ('AJUSTE', 'REFINANCIACION') THEN
             v_monto_ajuste := NEW.monto;
         END IF;
         
@@ -128,21 +121,55 @@ BEGIN
             END
         WHERE deuda_id = NEW.deuda_id;
         
+    ELSIF TG_OP = 'UPDATE' THEN
+        -- Revertir el movimiento anterior
+        IF OLD.tipo IN ('CARGO', 'INTERES') THEN
+            v_monto_reversion := -OLD.monto;
+        ELSIF OLD.tipo = 'PAGO' THEN
+            v_monto_reversion := OLD.monto;
+        ELSIF OLD.tipo IN ('AJUSTE', 'REFINANCIACION') THEN
+            v_monto_reversion := -OLD.monto;
+        END IF;
+        
+        -- Aplicar el nuevo movimiento
+        IF NEW.tipo IN ('CARGO', 'INTERES') THEN
+            v_monto_ajuste := NEW.monto;
+        ELSIF NEW.tipo = 'PAGO' THEN
+            v_monto_ajuste := -NEW.monto;
+        ELSIF NEW.tipo IN ('AJUSTE', 'REFINANCIACION') THEN
+            v_monto_ajuste := NEW.monto;
+        END IF;
+        
+        -- Actualizar saldo con la diferencia
+        UPDATE deudas 
+        SET 
+            saldo_actual = saldo_actual + v_monto_reversion + v_monto_ajuste,
+            cuotas_pagadas = CASE 
+                WHEN OLD.tipo = 'PAGO' AND cuotas_pagadas > 0 THEN cuotas_pagadas - 1
+                ELSE cuotas_pagadas
+            END + CASE 
+                WHEN NEW.tipo = 'PAGO' AND monto_cuota IS NOT NULL AND monto_cuota > 0 THEN 1
+                ELSE 0
+            END,
+            ultimo_pago = CASE 
+                WHEN NEW.tipo = 'PAGO' THEN NEW.fecha
+                ELSE ultimo_pago
+            END
+        WHERE deuda_id = NEW.deuda_id;
+        
     ELSIF TG_OP = 'DELETE' THEN
         -- Revertir el movimiento
         IF OLD.tipo IN ('CARGO', 'INTERES') THEN
-            v_monto_ajuste := -OLD.monto;
-        ELSIF OLD.tipo IN ('PAGO') THEN
-            v_monto_ajuste := OLD.monto;
-        ELSIF OLD.tipo IN ('AJUSTE') THEN
-            v_monto_ajuste := -OLD.monto;
-        ELSIF OLD.tipo IN ('REFINANCIACION') THEN
-            v_monto_ajuste := -OLD.monto;
+            v_monto_reversion := -OLD.monto;
+        ELSIF OLD.tipo = 'PAGO' THEN
+            v_monto_reversion := OLD.monto;
+        ELSIF OLD.tipo IN ('AJUSTE', 'REFINANCIACION') THEN
+            v_monto_reversion := -OLD.monto;
         END IF;
         
         UPDATE deudas 
         SET 
-            saldo_actual = saldo_actual + v_monto_ajuste,
+            saldo_actual = saldo_actual + v_monto_reversion,
             cuotas_pagadas = CASE 
                 WHEN OLD.tipo = 'PAGO' AND cuotas_pagadas > 0
                 THEN cuotas_pagadas - 1
@@ -158,7 +185,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trigger_actualizar_saldo_deuda
-    AFTER INSERT OR DELETE ON movimientos_deuda
+    AFTER INSERT OR UPDATE OR DELETE ON movimientos_deuda
     FOR EACH ROW
     EXECUTE FUNCTION actualizar_saldo_deuda_trigger();
 
