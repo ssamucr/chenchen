@@ -1,0 +1,299 @@
+// Chenchen - Sistema de Gestión Financiera Personal
+// Modelo de Base de Datos en DBML
+// Visualizar en: https://dbdiagram.io/
+
+Project chenchen {
+  database_type: 'PostgreSQL'
+  Note: 'Sistema completo de gestión financiera personal con cuentas, subcuentas, deudas, compromisos recurrentes y planificación'
+}
+
+// ============ USUARIOS ============
+Table usuarios {
+  usuario_id bigint [pk, increment]
+  email varchar(255) [unique, not null]
+  nombre varchar(100) [not null]
+  apellido varchar(100)
+  telefono varchar(20)
+  fecha_nacimiento date
+  creado_en timestamptz [not null, default: `now()`]
+  actualizado_en timestamptz [not null, default: `now()`]
+  
+  indexes {
+    email [unique]
+  }
+  
+  Note: 'Usuarios del sistema'
+}
+
+// ============ CATEGORÍAS ============
+Table categorias {
+  categoria_id bigint [pk, increment]
+  nombre varchar(100) [unique, not null]
+  tipo varchar(20) [not null]
+  descripcion text
+  color_hex char(7) [not null, default: '#3B82F6']
+  icono varchar(50)
+  activa boolean [not null, default: true]
+  creada_en timestamptz [not null, default: `now()`]
+  
+  indexes {
+    nombre [unique]
+    tipo
+  }
+  
+  Note: 'Categorías para clasificar transacciones (INGRESO, GASTO)'
+}
+
+// ============ CUENTAS ============
+Table cuentas {
+  cuenta_id bigint [pk, increment]
+  usuario_id bigint [not null, ref: > usuarios.usuario_id]
+  nombre varchar(100) [not null]
+  tipo_cuenta varchar(30) [not null]
+  institucion varchar(100)
+  numero_cuenta varchar(50)
+  moneda char(3) [not null, default: 'USD']
+  saldo_actual decimal(15,2) [not null, default: 0]
+  limite_credito decimal(15,2)
+  dia_corte integer
+  dia_pago integer
+  tasa_interes decimal(5,2)
+  activa boolean [not null, default: true]
+  incluir_en_total boolean [not null, default: true]
+  color_hex char(7) [not null, default: '#3B82F6']
+  icono varchar(50)
+  orden_mostrar integer [not null, default: 0]
+  descripcion text
+  notas text
+  creada_en timestamptz [not null, default: `now()`]
+  actualizada_en timestamptz [not null, default: `now()`]
+  ultimo_movimiento timestamptz
+  
+  indexes {
+    (usuario_id, activa)
+    tipo_cuenta
+  }
+  
+  Note: 'Cuentas financieras (bancos, efectivo, tarjetas, inversiones)'
+}
+
+// ============ SUBCUENTAS ============
+Table subcuentas {
+  subcuenta_id bigint [pk, increment]
+  cuenta_id bigint [not null, ref: > cuentas.cuenta_id]
+  nombre varchar(100) [not null]
+  descripcion text
+  tipo_subcuenta varchar(30) [not null]
+  saldo_actual decimal(15,2) [not null, default: 0]
+  monto_meta decimal(15,2)
+  fecha_meta date
+  prioridad varchar(20) [default: 'MEDIA']
+  activa boolean [not null, default: true]
+  color_hex char(7) [not null, default: '#10B981']
+  icono varchar(50)
+  creada_en timestamptz [not null, default: `now()`]
+  actualizada_en timestamptz [not null, default: `now()`]
+  
+  indexes {
+    (cuenta_id, activa)
+    tipo_subcuenta
+  }
+  
+  Note: 'Subcuentas virtuales dentro de cuentas para organizar fondos'
+}
+
+// ============ TRANSACCIONES ============
+Table transacciones {
+  transaccion_id bigint [pk, increment]
+  usuario_id bigint [not null, ref: > usuarios.usuario_id]
+  cuenta_origen_id bigint [ref: > cuentas.cuenta_id]
+  cuenta_destino_id bigint [ref: > cuentas.cuenta_id]
+  categoria_id bigint [ref: > categorias.categoria_id]
+  compromiso_recurrente_id bigint [ref: > compromisos_recurrentes.compromiso_id]
+  fecha date [not null, default: `CURRENT_DATE`]
+  tipo varchar(20) [not null]
+  monto decimal(15,2) [not null]
+  descripcion text
+  referencia varchar(100)
+  creada_en timestamptz [not null, default: `now()`]
+  actualizada_en timestamptz [not null, default: `now()`]
+  
+  indexes {
+    (usuario_id, fecha)
+    cuenta_origen_id
+    cuenta_destino_id
+    categoria_id
+    tipo
+  }
+  
+  Note: 'Registro de todas las transacciones financieras (EDITABLES y ELIMINABLES)'
+}
+
+// ============ MOVIMIENTOS SUBCUENTA ============
+Table movimientos_subcuenta {
+  movimiento_subcuenta_id bigint [pk, increment]
+  subcuenta_id bigint [not null, ref: > subcuentas.subcuenta_id]
+  transaccion_id bigint [not null, ref: > transacciones.transaccion_id]
+  fecha timestamptz [not null, default: `now()`]
+  tipo varchar(30) [not null]
+  monto decimal(15,2) [not null]
+  descripcion text
+  creado_en timestamptz [not null, default: `now()`]
+  
+  indexes {
+    (subcuenta_id, fecha)
+    transaccion_id
+    tipo
+  }
+  
+  Note: 'Movimientos dentro de subcuentas (DEPOSITO, RETIRO, TRANSFERENCIA, AJUSTE)'
+}
+
+// ============ DEUDAS ============
+Table deudas {
+  deuda_id bigint [pk, increment]
+  usuario_id bigint [not null, ref: > usuarios.usuario_id]
+  cuenta_id bigint [ref: > cuentas.cuenta_id]
+  subcuenta_id bigint [ref: > subcuentas.subcuenta_id]
+  tipo varchar(30) [not null]
+  acreedor varchar(150)
+  deudor varchar(150)
+  descripcion text
+  saldo_inicial decimal(15,2) [not null]
+  saldo_actual decimal(15,2) [not null]
+  monto_cuota decimal(15,2)
+  frecuencia_pago varchar(30)
+  dia_pago integer
+  tasa_interes decimal(5,2)
+  numero_cuotas integer
+  cuotas_pagadas integer [default: 0]
+  fecha_inicio date [not null, default: `CURRENT_DATE`]
+  fecha_vencimiento date
+  proximo_pago date
+  estado varchar(20) [not null, default: 'ACTIVA']
+  prioridad varchar(20) [default: 'MEDIA']
+  color_hex char(7) [not null, default: '#EF4444']
+  icono varchar(50)
+  creada_en timestamptz [not null, default: `now()`]
+  actualizada_en timestamptz [not null, default: `now()`]
+  ultimo_pago timestamptz
+  
+  indexes {
+    (usuario_id, estado)
+    (tipo, estado)
+    (estado, prioridad)
+    proximo_pago
+  }
+  
+  Note: 'Gestión de deudas (TARJETA, PRESTAMO, HIPOTECA, AUTO, POR_PAGAR, POR_COBRAR)'
+}
+
+// ============ MOVIMIENTOS DEUDA ============
+Table movimientos_deuda {
+  movimiento_deuda_id bigint [pk, increment]
+  deuda_id bigint [not null, ref: > deudas.deuda_id]
+  transaccion_id bigint [not null, ref: > transacciones.transaccion_id]
+  fecha timestamptz [not null, default: `now()`]
+  tipo varchar(30) [not null]
+  monto decimal(15,2) [not null]
+  descripcion text
+  interes_generado decimal(15,2) [default: 0]
+  capital_pagado decimal(15,2)
+  interes_pagado decimal(15,2)
+  creado_en timestamptz [not null, default: `now()`]
+  
+  indexes {
+    (deuda_id, fecha)
+    transaccion_id
+    tipo
+  }
+  
+  Note: 'Movimientos de deudas (CARGO, PAGO, AJUSTE, INTERES, REFINANCIACION)'
+}
+
+// ============ GASTOS PLANIFICADOS ============
+Table gastos_planificados {
+  gasto_id bigint [pk, increment]
+  usuario_id bigint [not null, ref: > usuarios.usuario_id]
+  nombre varchar(150) [not null]
+  descripcion text
+  categoria_id bigint [ref: > categorias.categoria_id]
+  monto_estimado decimal(15,2) [not null]
+  monto_gastado decimal(15,2) [not null, default: 0]
+  fecha_inicio date [not null, default: `CURRENT_DATE`]
+  fecha_fin date [not null]
+  activo boolean [not null, default: true]
+  color_hex char(7) [not null, default: '#F59E0B']
+  icono varchar(50)
+  notas text
+  creado_en timestamptz [not null, default: `now()`]
+  actualizado_en timestamptz [not null, default: `now()`]
+  
+  indexes {
+    (usuario_id, activo)
+    (fecha_inicio, fecha_fin)
+  }
+  
+  Note: 'Planificación de gastos con presupuesto'
+}
+
+// ============ COMPROMISOS RECURRENTES ============
+Table compromisos_recurrentes {
+  compromiso_id bigint [pk, increment]
+  usuario_id bigint [not null, ref: > usuarios.usuario_id]
+  cuenta_destino_id bigint [ref: > cuentas.cuenta_id]
+  descripcion text [not null]
+  tipo varchar(20) [not null]
+  categoria varchar(100)
+  monto decimal(15,2) [not null]
+  frecuencia varchar(30) [not null]
+  dia_pago integer
+  fecha_inicio date [not null, default: `CURRENT_DATE`]
+  fecha_fin date
+  ultimo_evento date
+  activo boolean [not null, default: true]
+  auto_generar boolean [not null, default: false]
+  color_hex char(7) [not null, default: '#8B5CF6']
+  icono varchar(50)
+  notas text
+  creado_en timestamptz [not null, default: `now()`]
+  actualizado_en timestamptz [not null, default: `now()`]
+  
+  indexes {
+    (usuario_id, activo)
+    (tipo, activo)
+    frecuencia
+  }
+  
+  Note: 'Ingresos/egresos recurrentes (salario, renta, etc.). proximo_evento se calcula dinámicamente en vista'
+}
+
+// ============ PLAN QUINCENAL ============
+Table plan_quincenal {
+  item_id bigint [pk, increment]
+  usuario_id bigint [not null, ref: > usuarios.usuario_id]
+  nombre varchar(150) [not null]
+  descripcion text
+  tipo_movimiento varchar(30) [not null]
+  monto decimal(15,2) [not null]
+  cuenta_origen_id bigint [ref: > cuentas.cuenta_id]
+  cuenta_destino_id bigint [ref: > cuentas.cuenta_id]
+  subcuenta_destino_id bigint [ref: > subcuentas.subcuenta_id]
+  deuda_id bigint [ref: > deudas.deuda_id]
+  activo boolean [not null, default: true]
+  ejecutado boolean [not null, default: false]
+  prioridad varchar(20) [default: 'MEDIA']
+  orden_ejecucion integer [not null, default: 0]
+  creado_en timestamptz [not null, default: `now()`]
+  actualizado_en timestamptz [not null, default: `now()`]
+  ejecutado_en timestamptz
+  transaccion_generada_id bigint [ref: > transacciones.transaccion_id]
+  
+  indexes {
+    (usuario_id, activo, ejecutado)
+    (orden_ejecucion, prioridad)
+    tipo_movimiento
+  }
+  
+  Note: 'Planificación de movimientos financieros recurrentes (TRANSFERENCIA_CUENTAS, MOVIMIENTO_SUBCUENTA, PAGO_DEUDA, AHORRO)'
+}
