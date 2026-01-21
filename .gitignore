@@ -103,3 +103,6 @@ build/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# ============ OTROS ============
+*.pdf
