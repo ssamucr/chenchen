@@ -178,7 +178,7 @@ SELECT
     -- Días hasta el próximo evento
     CASE 
         WHEN cr.ultimo_evento IS NOT NULL THEN
-            (cr.ultimo_evento + CASE cr.frecuencia
+            EXTRACT(days FROM (cr.ultimo_evento + CASE cr.frecuencia
                 WHEN 'DIARIA' THEN INTERVAL '1 day'
                 WHEN 'SEMANAL' THEN INTERVAL '7 days'
                 WHEN 'QUINCENAL' THEN INTERVAL '15 days'
@@ -187,9 +187,9 @@ SELECT
                 WHEN 'TRIMESTRAL' THEN INTERVAL '3 months'
                 WHEN 'SEMESTRAL' THEN INTERVAL '6 months'
                 WHEN 'ANUAL' THEN INTERVAL '1 year'
-            END - CURRENT_DATE)::INTEGER
+            END - CURRENT_DATE))::INTEGER
         ELSE
-            (cr.fecha_inicio + CASE cr.frecuencia
+            EXTRACT(days FROM (cr.fecha_inicio + CASE cr.frecuencia
                 WHEN 'DIARIA' THEN INTERVAL '1 day'
                 WHEN 'SEMANAL' THEN INTERVAL '7 days'
                 WHEN 'QUINCENAL' THEN INTERVAL '15 days'
@@ -198,7 +198,7 @@ SELECT
                 WHEN 'TRIMESTRAL' THEN INTERVAL '3 months'
                 WHEN 'SEMESTRAL' THEN INTERVAL '6 months'
                 WHEN 'ANUAL' THEN INTERVAL '1 year'
-            END - CURRENT_DATE)::INTEGER
+            END - CURRENT_DATE))::INTEGER
     END AS dias_hasta_proximo,
     -- Evento pendiente
     CASE 
@@ -291,8 +291,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Nota: Este trigger se creará en V004 después de que exista la tabla transacciones
--- Por ahora se documenta aquí para referencia
+-- Nota: Ahora creamos el trigger ya que ambas tablas y la función existen
+CREATE TRIGGER trigger_actualizar_compromiso_recurrente
+    AFTER INSERT ON transacciones
+    FOR EACH ROW
+    WHEN (NEW.compromiso_recurrente_id IS NOT NULL)
+    EXECUTE FUNCTION actualizar_ultimo_evento_compromiso();
+
 COMMENT ON FUNCTION actualizar_ultimo_evento_compromiso() IS 
 'Trigger function que actualiza ultimo_evento cuando se registra una transacción relacionada';
 
@@ -318,3 +323,11 @@ INSERT INTO compromisos_recurrentes (usuario_id, descripcion, tipo, categoria, m
 (1, 'Netflix', 'EGRESO', 'Entretenimiento', 299.00, 'MENSUAL', 10, 1, TRUE, '#E50914', 'tv'),
 (1, 'Gym', 'EGRESO', 'Salud', 800.00, 'MENSUAL', 5, 1, FALSE, '#F59E0B', 'dumbbell');
 */
+
+-- ============ AGREGAR FK A TRANSACCIONES ============
+-- Ahora que compromisos_recurrentes existe, agregamos la FK desde transacciones
+ALTER TABLE transacciones 
+ADD CONSTRAINT fk_transaccion_compromiso_recurrente 
+    FOREIGN KEY (compromiso_recurrente_id) 
+    REFERENCES compromisos_recurrentes(compromiso_id) 
+    ON DELETE SET NULL;

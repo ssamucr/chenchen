@@ -49,10 +49,11 @@ CREATE TABLE transacciones (
         REFERENCES categorias(categoria_id) 
         ON DELETE SET NULL,
     
-    CONSTRAINT fk_transaccion_compromiso_recurrente 
-        FOREIGN KEY (compromiso_recurrente_id) 
-        REFERENCES compromisos_recurrentes(compromiso_id) 
-        ON DELETE SET NULL,
+    -- NOTA: La FK a compromisos_recurrentes se agregará en V011 después de crear esa tabla
+    -- CONSTRAINT fk_transaccion_compromiso_recurrente 
+    --     FOREIGN KEY (compromiso_recurrente_id) 
+    --     REFERENCES compromisos_recurrentes(compromiso_id) 
+    --     ON DELETE SET NULL,
     
     -- ============ REGLAS DE NEGOCIO ============
     
@@ -224,14 +225,14 @@ CREATE TRIGGER trigger_eliminar_transaccion
 
 -- ============ TRIGGER PARA ACTUALIZAR COMPROMISOS RECURRENTES ============
 
--- Nota: Esta función se define en V011__compromisos_recurrentes.sql
--- El trigger se crea aquí porque depende de la tabla transacciones
+-- Nota: Este trigger se creará en V011__compromisos_recurrentes.sql 
+-- después de que la función actualizar_ultimo_evento_compromiso() sea definida
 
-CREATE TRIGGER trigger_actualizar_compromiso_recurrente
-    AFTER INSERT ON transacciones
-    FOR EACH ROW
-    WHEN (NEW.compromiso_recurrente_id IS NOT NULL)
-    EXECUTE FUNCTION actualizar_ultimo_evento_compromiso();
+-- CREATE TRIGGER trigger_actualizar_compromiso_recurrente
+--     AFTER INSERT ON transacciones
+--     FOR EACH ROW
+--     WHEN (NEW.compromiso_recurrente_id IS NOT NULL)
+--     EXECUTE FUNCTION actualizar_ultimo_evento_compromiso();
 
 -- ============ COMENTARIOS ============
 COMMENT ON TABLE transacciones IS 'Registro de transacciones financieras (EDITABLES y ELIMINABLES para facilidad del usuario)';
