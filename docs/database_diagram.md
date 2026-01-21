@@ -13,8 +13,11 @@ erDiagram
     cuentas ||--o{ deudas : "asociada"
     cuentas ||--o{ compromisos_recurrentes : "destino"
     
-    subcuentas ||--o{ movimientos_subcuenta : "registra"
+    subcuentas ||--o{ movimientos_subcuenta : "origen"
+    subcuentas ||--o{ movimientos_subcuenta : "destino"
+    subcuentas ||--o{ gastos_planificados : "tiene"
     
+    categorias ||--o{ categorias : "subcategoría"
     categorias ||--o{ transacciones : "clasifica"
     
     transacciones ||--o{ movimientos_subcuenta : "genera"
@@ -53,10 +56,12 @@ erDiagram
 
     categorias {
         bigint categoria_id PK
+        bigint categoria_padre_id FK
         varchar nombre UK
         varchar tipo
         char color_hex
         varchar icono
+        boolean es_subcategoria
     }
 
     subcuentas {
@@ -85,11 +90,28 @@ erDiagram
     movimientos_subcuenta {
         bigint movimiento_subcuenta_id PK
         bigint subcuenta_id FK
+        bigint subcuenta_destino_id FK
         bigint transaccion_id FK
         timestamptz fecha
         varchar tipo
         decimal monto
         text descripcion
+    }
+
+    gastos_planificados {
+        bigint gasto_planificado_id PK
+        bigint subcuenta_id FK
+        text descripcion
+        varchar categoria
+        decimal monto_total
+        decimal monto_gastado
+        date fecha_creacion
+        date fecha_objetivo
+        date fecha_completado
+        varchar estado
+        varchar prioridad
+        char color_hex
+        text notas
     }
 
     deudas {
@@ -156,6 +178,12 @@ Puedes visualizar este diagrama en:
 
 1. **GitHub** - Este archivo se renderiza automáticamente en GitHub
 2. **Mermaid Live Editor** - https://mermaid.live/
+
+### Gastos Planificados
+- Subcuenta → puede tener → Gastos Planificados
+- Gasto Planificado → se financia desde → Subcuenta
+- Estado se actualiza automáticamente según progreso
+- Se marcan como vencidos si pasan la fecha objetivo
 3. **VS Code** - Instala la extensión "Markdown Preview Mermaid Support"
 4. **Confluence, Notion** - Soportan Mermaid nativamente
 
