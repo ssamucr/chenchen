@@ -59,6 +59,32 @@ services:
       postgres:
         condition: service_healthy
 
+  # ============ API FASTAPI ============
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: finanzas_api
+    restart: unless-stopped
+    
+    # Puertos
+    ports:
+      - "${API_PORT:-8000}:8000"
+    
+    # Variables de entorno
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+      TZ: ${DEFAULT_TIMEZONE}
+    
+    # Volúmenes para desarrollo (hot reload)
+    volumes:
+      - ./api:/app/api:ro
+    
+    # Depende de postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 # ============ VOLÚMENES PERSISTENTES ============
 volumes:
   pgdata:
