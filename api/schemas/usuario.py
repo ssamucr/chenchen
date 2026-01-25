@@ -13,6 +13,16 @@ class UsuarioBase(BaseModel):
 class UsuarioCreate(UsuarioBase):
     password: str = Field(..., min_length=8)
 
+class UsuarioUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    nombre: Optional[str] = Field(None, min_length=1, max_length=100)
+    apellido: Optional[str] = Field(None, min_length=1, max_length=100)
+    password: Optional[str] = Field(None, min_length=8)
+    moneda_principal: Optional[str] = Field(None, pattern='^[A-Z]{3}$')
+    zona_horaria: Optional[str] = Field(None, max_length=50)
+    idioma: Optional[str] = Field(None, pattern='^[a-z]{2}$')
+    activo: Optional[bool] = None
+
 class UsuarioResponse(UsuarioBase):
     usuario_id: int
     activo: bool

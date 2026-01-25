@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from api.database import get_db
 from api.models.usuario import Usuario
-from api.schemas.usuario import UsuarioCreate, UsuarioResponse
+from api.schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioResponse
 from typing import List
 import bcrypt
 
@@ -66,3 +66,60 @@ async def obtener_usuario(usuario_id: int, db: Session = Depends(get_db)):
             detail="Usuario no encontrado"
         )
     return usuario
+
+@router.put("/{usuario_id}", response_model=UsuarioResponse)
+async def actualizar_usuario(usuario_id: int, usuario_update: UsuarioUpdate, db: Session = Depends(get_db)):
+    """
+    Actualizar datos de un usuario
+    """
+    # Verificar que el usuario existe
+    usuario = db.query(Usuario).filter(Usuario.usuario_id == usuario_id).first()
+    if not usuario:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+    
+    # Verificar si se está actualizando el email y si ya existe
+    if usuario_update.email and usuario_update.email != usuario.email:
+        email_existente = db.query(Usuario).filter(
+            Usuario.email == usuario_update.email,
+            Usuario.usuario_id != usuario_id
+        ).first()
+        if email_existente:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El email ya está registrado"
+            )
+    
+    # Actualizar solo los campos proporcionados
+    update_data = usuario_update.model_dump(exclude_unset=True)
+    
+    # Si se actualiza la contraseña, hashearla
+    if "password" in update_data:
+        update_data["password_hash"] = hash_password(update_data.pop("password"))
+    
+    for field, value in update_data.items():
+        setattr(usuario, field, value)
+    
+    db.commit()
+    db.refresh(usuario)
+    
+    return usuario
+
+@router.delete("/{usuario_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def eliminar_usuario(usuario_id: int, db: Session = Depends(get_db)):
+    """
+    Eliminar un usuario
+    """
+    usuario = db.query(Usuario).filter(Usuario.usuario_id == usuario_id).first()
+    if not usuario:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+    
+    db.delete(usuario)
+    db.commit()
+    
+    return None
