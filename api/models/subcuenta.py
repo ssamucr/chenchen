@@ -33,6 +33,9 @@ class Subcuenta(Base):
     # Relaciones
     cuenta = relationship("Cuenta", back_populates="subcuentas")
 
+    movimientos_subcuentas = relationship("MovimientoSubcuenta", back_populates="subcuenta", lazy="dynamic")
+    movimientos_subcuentas_destino = relationship("MovimientoSubcuenta", back_populates="subcuenta_destino", lazy="dynamic")
+
     # Constraints (validaciones de negocio)
     __table_args__ = (
         CheckConstraint("LENGTH(TRIM(nombre)) > 0", name='check_nombre_no_vacio'),

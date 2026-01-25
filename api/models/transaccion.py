@@ -41,6 +41,9 @@ class Transaccion(Base):
     # Relación con Compromiso Recurrente (si existe)
     # compromiso_recurrente = relationship("CompromisoRecurrente", back_populates="transacciones")
     
+    # Relación con Movimientos de Subcuentas
+    movimientos_subcuentas = relationship("MovimientoSubcuenta", back_populates="transaccion", lazy="dynamic")
+
     # Constraints (validaciones de negocio)
     __table_args__ = (
         CheckConstraint(
