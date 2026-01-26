@@ -23,6 +23,7 @@ class Usuario(Base):
     # Relaciones
     transacciones = relationship("Transaccion", back_populates="usuario", lazy="dynamic")
     cuentas = relationship("Cuenta", back_populates="usuario", lazy="dynamic")
+    deudas = relationship("Deuda", back_populates="usuario", lazy="dynamic")
     
     # Constraints (validaciones de negocio)
     __table_args__ = (

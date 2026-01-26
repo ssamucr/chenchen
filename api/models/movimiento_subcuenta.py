@@ -4,7 +4,7 @@ from sqlalchemy.orm import relationship
 from api.database import Base
 
 class MovimientoSubcuenta(Base):
-    __tablename__ = "movimientos_subcuentas"
+    __tablename__ = "movimientos_subcuenta"
     
     # Clave primaria
     movimiento_subcuenta_id = Column(BigInteger, primary_key=True, index=True)
@@ -24,11 +24,9 @@ class MovimientoSubcuenta(Base):
     creado_en = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relaciones
-
-    subcuenta = relationship("Subcuenta", foreign_keys=[subcuenta_id], back_populates="movimientos_subcuentas")
-    subcuenta_destino = relationship("Subcuenta", foreign_keys=[subcuenta_destino_id], back_populates="movimientos_subcuentas_destino")
-
-    transaccion = relationship("Transaccion", back_populates="movimientos_subcuentas")
+    subcuenta = relationship("Subcuenta", foreign_keys=[subcuenta_id], back_populates="movimientos_origen")
+    subcuenta_destino = relationship("Subcuenta", foreign_keys=[subcuenta_destino_id], back_populates="movimientos_destino")
+    transaccion = relationship("Transaccion", back_populates="movimientos_subcuenta")
 
     # Constraints (validaciones de negocio)
     __table_args__ = (

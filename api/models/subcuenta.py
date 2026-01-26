@@ -32,9 +32,9 @@ class Subcuenta(Base):
 
     # Relaciones
     cuenta = relationship("Cuenta", back_populates="subcuentas")
-
-    movimientos_subcuentas = relationship("MovimientoSubcuenta", back_populates="subcuenta", lazy="dynamic")
-    movimientos_subcuentas_destino = relationship("MovimientoSubcuenta", back_populates="subcuenta_destino", lazy="dynamic")
+    movimientos_origen = relationship("MovimientoSubcuenta", foreign_keys="MovimientoSubcuenta.subcuenta_id", back_populates="subcuenta", lazy="dynamic")
+    movimientos_destino = relationship("MovimientoSubcuenta", foreign_keys="MovimientoSubcuenta.subcuenta_destino_id", back_populates="subcuenta_destino", lazy="dynamic")
+    deudas = relationship("Deuda", back_populates="subcuenta", lazy="dynamic")
 
     # Constraints (validaciones de negocio)
     __table_args__ = (
