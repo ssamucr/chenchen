@@ -54,11 +54,12 @@ class Deuda(Base):
     usuario = relationship("Usuario", back_populates="deudas")
     cuenta = relationship("Cuenta", back_populates="deudas")
     subcuenta = relationship("Subcuenta", back_populates="deudas")
+    movimientos_deuda = relationship("MovimientoDeuda", back_populates="deuda", lazy="dynamic")
 
     # Constraints (validaciones de negocio)
     __table_args__ = (
         CheckConstraint(
-            "tipo IN ('PRESTAMO', 'TARJETA', 'HIPOTECA', 'AUTO', 'POR_PAGAR', 'POR_COBRAR', 'OTRO')",
+            "tipo IN ('TARJETA', 'PRESTAMO', 'HIPOTECA', 'AUTO', 'POR_PAGAR', 'POR_COBRAR', 'OTRO')",
             name='check_tipo_deuda_valido'
         ),
         CheckConstraint(
@@ -74,7 +75,7 @@ class Deuda(Base):
             name='check_frecuencia_valida'
         ),
         CheckConstraint(
-            "tipo = 'POR_COBRAR' AND saldo_inicial < 0 AND saldo_actual <= saldo_inicial OR tipo != 'POR_COBRAR' AND saldo_inicial > 0 AND saldo_actual >= 0 AND saldo_actual <= saldo_inicial",
+            "(tipo = 'POR_COBRAR' AND saldo_inicial < 0 AND saldo_actual <= saldo_inicial) OR (tipo != 'POR_COBRAR' AND saldo_inicial > 0 AND saldo_actual >= 0 AND saldo_actual <= saldo_inicial)",
             name='check_saldos_coherentes'
         ),
         CheckConstraint(

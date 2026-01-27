@@ -19,7 +19,7 @@ CREATE TABLE movimientos_deuda (
     descripcion         TEXT,
     
     -- ============ INFORMACIÓN ADICIONAL ============
-    interes_generado    DECIMAL(15,2) DEFAULT 0,
+    interes_generado    DECIMAL(15,2),
     capital_pagado      DECIMAL(15,2),
     interes_pagado      DECIMAL(15,2),
     
@@ -66,6 +66,21 @@ CREATE TABLE movimientos_deuda (
                 AND interes_pagado IS NOT NULL 
                 AND (capital_pagado + interes_pagado) = monto
             )
+        ),
+    
+    -- ✅ Campos de pago solo se usan en pagos
+    CONSTRAINT check_campos_pago_solo_en_pago 
+        CHECK (
+            tipo = 'PAGO' 
+            OR (capital_pagado IS NULL AND interes_pagado IS NULL)
+        ),
+    
+    -- ✅ Interés generado solo en movimientos de tipo INTERES
+    CONSTRAINT check_interes_generado_solo_en_interes 
+        CHECK (
+            tipo = 'INTERES' 
+            OR interes_generado = 0 
+            OR interes_generado IS NULL
         )
 );
 

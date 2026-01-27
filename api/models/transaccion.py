@@ -43,6 +43,7 @@ class Transaccion(Base):
     
     # Relación con Movimientos de Subcuentas
     movimientos_subcuenta = relationship("MovimientoSubcuenta", back_populates="transaccion", lazy="dynamic")
+    movimientos_deuda = relationship("MovimientoDeuda", back_populates="transaccion", lazy="dynamic")
 
     # Constraints (validaciones de negocio)
     __table_args__ = (
