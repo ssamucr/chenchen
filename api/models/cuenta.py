@@ -55,6 +55,9 @@ class Cuenta(Base):
     deudas = relationship("Deuda", back_populates="cuenta", lazy="dynamic")
     
     compromisos_recurrentes = relationship("CompromisoRecurrente", back_populates="cuenta_destino", lazy="dynamic")
+    
+    plan_quincenal_origen = relationship("PlanQuincenal", foreign_keys="PlanQuincenal.cuenta_origen_id", back_populates="cuenta_origen", lazy="dynamic")
+    plan_quincenal_destino = relationship("PlanQuincenal", foreign_keys="PlanQuincenal.cuenta_destino_id", back_populates="cuenta_destino", lazy="dynamic")
 
     # Constraints (validaciones de negocio)
     __table_args__ = (

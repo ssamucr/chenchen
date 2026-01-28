@@ -44,6 +44,9 @@ class Transaccion(Base):
     # Relación con Movimientos de Subcuentas
     movimientos_subcuenta = relationship("MovimientoSubcuenta", back_populates="transaccion", lazy="dynamic")
     movimientos_deuda = relationship("MovimientoDeuda", back_populates="transaccion", lazy="dynamic")
+    
+    # Relación con Plan Quincenal
+    plan_quincenal = relationship("PlanQuincenal", foreign_keys="PlanQuincenal.transaccion_generada_id", back_populates="transaccion_generada")
 
     # Constraints (validaciones de negocio)
     __table_args__ = (

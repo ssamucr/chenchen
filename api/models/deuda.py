@@ -55,6 +55,7 @@ class Deuda(Base):
     cuenta = relationship("Cuenta", back_populates="deudas")
     subcuenta = relationship("Subcuenta", back_populates="deudas")
     movimientos_deuda = relationship("MovimientoDeuda", back_populates="deuda", lazy="dynamic")
+    plan_quincenal = relationship("PlanQuincenal", back_populates="deuda", lazy="dynamic")
 
     # Constraints (validaciones de negocio)
     __table_args__ = (

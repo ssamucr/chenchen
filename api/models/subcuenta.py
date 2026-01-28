@@ -36,6 +36,7 @@ class Subcuenta(Base):
     movimientos_destino = relationship("MovimientoSubcuenta", foreign_keys="MovimientoSubcuenta.subcuenta_destino_id", back_populates="subcuenta_destino", lazy="dynamic")
     deudas = relationship("Deuda", back_populates="subcuenta", lazy="dynamic")
     gastos_planificados = relationship("GastoPlanificado", back_populates="subcuenta", lazy="dynamic")
+    plan_quincenal = relationship("PlanQuincenal", back_populates="subcuenta_destino", lazy="dynamic")
 
     # Constraints (validaciones de negocio)
     __table_args__ = (

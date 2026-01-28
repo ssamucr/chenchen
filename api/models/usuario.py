@@ -25,6 +25,7 @@ class Usuario(Base):
     cuentas = relationship("Cuenta", back_populates="usuario", lazy="dynamic")
     deudas = relationship("Deuda", back_populates="usuario", lazy="dynamic")
     compromisos_recurrentes = relationship("CompromisoRecurrente", back_populates="usuario", lazy="dynamic")
+    plan_quincenal = relationship("PlanQuincenal", back_populates="usuario", lazy="dynamic")
     
     # Constraints (validaciones de negocio)
     __table_args__ = (
