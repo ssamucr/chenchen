@@ -53,6 +53,8 @@ class Cuenta(Base):
     subcuentas = relationship("Subcuenta", back_populates="cuenta", lazy="dynamic")
 
     deudas = relationship("Deuda", back_populates="cuenta", lazy="dynamic")
+    
+    compromisos_recurrentes = relationship("CompromisoRecurrente", back_populates="cuenta_destino", lazy="dynamic")
 
     # Constraints (validaciones de negocio)
     __table_args__ = (

@@ -39,7 +39,7 @@ class Transaccion(Base):
     categoria = relationship("Categoria", back_populates="transacciones")
     
     # Relación con Compromiso Recurrente (si existe)
-    # compromiso_recurrente = relationship("CompromisoRecurrente", back_populates="transacciones")
+    compromiso_recurrente = relationship("CompromisoRecurrente", back_populates="transacciones")
     
     # Relación con Movimientos de Subcuentas
     movimientos_subcuenta = relationship("MovimientoSubcuenta", back_populates="transaccion", lazy="dynamic")
