@@ -28,47 +28,65 @@ class CuentaBase(BaseModel):
     # Metadata
     descripcion: Optional[str] = Field(None, description="Descripción de la cuenta")
     notas: Optional[str] = Field(None, description="Notas adicionales")
-    
+
+class CuentaValidators:
     @field_validator('tipo_cuenta')
     @classmethod
-    def validar_tipo_cuenta(cls, v: str) -> str:
-        tipos_validos = [
-            'EFECTIVO',
-            'CUENTA_CORRIENTE',
-            'CUENTA_AHORRO',
-            'CUENTA_NOMINA',
-            'TARJETA_CREDITO',
-            'TARJETA_DEBITO',
-            'INVERSION',
-            'PRESTAMO',
-            'WALLET_DIGITAL',
-            'CRIPTOMONEDA',
-            'OTRO'
-        ]
-        if v not in tipos_validos:
-            raise ValueError(f'Tipo de cuenta inválido. Debe ser uno de: {", ".join(tipos_validos)}')
+    def validar_tipo_cuenta(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            tipos_validos = {
+                'EFECTIVO',
+                'CUENTA_CORRIENTE',
+                'CUENTA_AHORRO',
+                'CUENTA_NOMINA',
+                'TARJETA_CREDITO',
+                'TARJETA_DEBITO',
+                'INVERSION',
+                'PRESTAMO',
+                'WALLET_DIGITAL',
+                'CRIPTOMONEDA',
+                'OTRO'
+            }
+            if v not in tipos_validos:
+                raise ValueError(f'Tipo de cuenta inválido. Debe ser uno de: {", ".join(sorted(tipos_validos))}')
         return v
-
-class CuentaCreate(CuentaBase):
-    usuario_id: int = Field(..., gt=0, description="ID del usuario propietario")
-    saldo_inicial: Optional[Decimal] = Field(default=Decimal('0.00'), description="Saldo inicial (se creará transacción AJUSTE_INICIAL automáticamente si es mayor a 0)")
+    
+    @field_validator('nombre')
+    @classmethod
+    def validar_nombre_no_vacio(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and len(v.strip()) == 0:
+            raise ValueError('El nombre no puede estar vacío')
+        return v
+    
+    @field_validator('moneda')
+    @classmethod
+    def validar_moneda(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            if len(v) != 3 or not v.isupper() or not v.isalpha():
+                raise ValueError('La moneda debe ser un código ISO de 3 letras mayúsculas (ej: USD, EUR, MXN)')
+        return v
     
     @field_validator('limite_credito')
     @classmethod
     def validar_limite_credito(cls, v: Optional[Decimal], info) -> Optional[Decimal]:
-        # Validar que el límite de crédito solo se use con tarjetas de crédito
         tipo_cuenta = info.data.get('tipo_cuenta')
         if tipo_cuenta == 'TARJETA_CREDITO':
             if v is None or v < 0:
-                raise ValueError('Las tarjetas de crédito deben tener un límite de crédito válido')
-        elif v is not None:
+                raise ValueError('Las tarjetas de crédito deben tener un límite de crédito válido (mayor o igual a 0)')
+        elif v is not None and tipo_cuenta is not None:
             raise ValueError('El límite de crédito solo puede establecerse para tarjetas de crédito')
         return v
 
-class CuentaUpdate(BaseModel):
+class CuentaCreate(CuentaBase, CuentaValidators):
+    usuario_id: int = Field(..., gt=0, description="ID del usuario propietario")
+    saldo_inicial: Optional[Decimal] = Field(default=Decimal('0.00'), description="Saldo inicial (se creará transacción AJUSTE_INICIAL automáticamente si es mayor a 0)")
+
+class CuentaUpdate(BaseModel, CuentaValidators):
     nombre: Optional[str] = Field(None, min_length=1, max_length=100)
+    tipo_cuenta: Optional[str] = Field(None, description="Tipo de cuenta")
     institucion: Optional[str] = Field(None, max_length=100)
     numero_cuenta: Optional[str] = Field(None, max_length=50)
+    moneda: Optional[str] = Field(None, pattern='^[A-Z]{3}$')
     limite_credito: Optional[Decimal] = Field(None, ge=Decimal('0'))
     dia_corte: Optional[int] = Field(None, ge=1, le=31)
     dia_pago: Optional[int] = Field(None, ge=1, le=31)

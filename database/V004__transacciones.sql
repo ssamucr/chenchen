@@ -18,7 +18,7 @@ CREATE TABLE transacciones (
     compromiso_recurrente_id BIGINT NULL,   -- Compromiso recurrente asociado (opcional)
     
     -- ============ DATOS PRINCIPALES ============
-    fecha               DATE NOT NULL DEFAULT CURRENT_DATE,
+    fecha               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     tipo                VARCHAR(20) NOT NULL,
     monto               DECIMAL(15,2) NOT NULL,
     descripcion         TEXT,

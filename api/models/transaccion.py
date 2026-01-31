@@ -17,7 +17,7 @@ class Transaccion(Base):
     compromiso_recurrente_id = Column(BigInteger, ForeignKey('compromisos_recurrentes.compromiso_id', ondelete='SET NULL'), nullable=True)
 
     # Datos principales
-    fecha = Column(Date, nullable=False, server_default=func.current_date())
+    fecha = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     tipo = Column(String(20), nullable=False)  # 'INGRESO', 'GASTO', 'TRANSFERENCIA', 'AJUSTE'
     monto = Column(Numeric(15, 2), nullable=False)
     descripcion = Column(Text, nullable=True)
