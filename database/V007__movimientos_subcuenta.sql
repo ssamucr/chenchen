@@ -23,6 +23,7 @@ CREATE TABLE movimientos_subcuenta (
     
     -- ============ AUDITORIA ============
     creado_en           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    actualizado_en       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
     -- ============ FOREIGN KEYS ============
     CONSTRAINT fk_mov_subcuenta 
@@ -195,6 +196,20 @@ CREATE TRIGGER trigger_actualizar_movimiento_subcuenta
     BEFORE UPDATE ON movimientos_subcuenta
     FOR EACH ROW
     EXECUTE FUNCTION actualizar_movimiento_subcuenta();
+
+-- Trigger para actualizar timestamp
+CREATE OR REPLACE FUNCTION actualizar_timestamp_movimiento_subcuenta()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.actualizado_en = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_timestamp_movimiento_subcuenta
+    BEFORE UPDATE ON movimientos_subcuenta
+    FOR EACH ROW
+    EXECUTE FUNCTION actualizar_timestamp_movimiento_subcuenta();
 
 -- Trigger para DELETE: revertir movimiento
 CREATE OR REPLACE FUNCTION eliminar_movimiento_subcuenta()
