@@ -3,8 +3,12 @@ from sqlalchemy.orm import Session
 from api.database import get_db
 from api.models.cuenta import Cuenta
 from api.models.usuario import Usuario
+from api.models.transaccion import Transaccion
+from api.models.categoria import Categoria
 from api.schemas.cuenta import CuentaCreate, CuentaResponse, CuentaUpdate
 from typing import List
+from datetime import datetime
+from decimal import Decimal
 
 router = APIRouter(prefix="/cuentas", tags=["cuentas"])
 
@@ -51,11 +55,40 @@ async def crear_cuenta(cuenta: CuentaCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(nueva_cuenta)
     
-    # TODO: Si saldo_inicial > 0, crear transacción AJUSTE_INICIAL
-    # Esto se implementará cuando tengamos el endpoint de transacciones
+    # Si hay saldo inicial, crear transacción de AJUSTE
     if cuenta.saldo_inicial and cuenta.saldo_inicial > 0:
-        # Por ahora solo agregamos una nota en los logs
-        pass
+        # Buscar o crear categoría para ajustes iniciales
+        categoria_ajuste = db.query(Categoria).filter(
+            Categoria.nombre == "Ajuste Inicial",
+            Categoria.tipo_transaccion == "AJUSTE"
+        ).first()
+        
+        if not categoria_ajuste:
+            categoria_ajuste = Categoria(
+                nombre="Ajuste Inicial",
+                tipo_transaccion="AJUSTE",
+                descripcion="Categoría para ajustes de saldo inicial",
+                activa=True
+            )
+            db.add(categoria_ajuste)
+            db.commit()
+            db.refresh(categoria_ajuste)
+        
+        # Crear transacción de ajuste
+        transaccion_ajuste = Transaccion(
+            usuario_id=cuenta.usuario_id,
+            cuenta_destino_id=nueva_cuenta.cuenta_id,
+            categoria_id=categoria_ajuste.categoria_id,
+            fecha=datetime.now(),
+            tipo="AJUSTE",
+            monto=Decimal(str(cuenta.saldo_inicial)),
+            descripcion=f"Saldo inicial de cuenta: {nueva_cuenta.nombre}",
+            referencia="AJUSTE_INICIAL"
+        )
+        
+        db.add(transaccion_ajuste)
+        db.commit()
+        db.refresh(nueva_cuenta)
     
     return nueva_cuenta
 

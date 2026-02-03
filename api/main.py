@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routes import usuarios, cuentas
+from api.routes import usuarios, cuentas, categorias, transacciones
 
 app = FastAPI(
     title="ChenChen API",
@@ -20,6 +20,8 @@ app.add_middleware(
 # Incluir routers
 app.include_router(usuarios.router)
 app.include_router(cuentas.router)
+app.include_router(categorias.router)
+app.include_router(transacciones.router)
 
 @app.get("/")
 async def root():
